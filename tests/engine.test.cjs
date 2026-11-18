@@ -63,7 +63,7 @@ test('long unbroken and non-Latin captions wrap within the movie width',()=>{
 test('built offline HTML has no external assets and every embedded script parses',()=>{
   const html=readFileSync(require('node:path').resolve(__dirname,'../dist/index.html'),'utf8');
   assert.doesNotMatch(html,/<(?:script|link|img)\b[^>]*(?:src|href)=["']https?:/i);
-  const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,2);
+  const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,3);
   for(const [,source] of scripts)assert.doesNotThrow(()=>new vm.Script(source));
 });
 test('GitHub Pages serves the same complete app as the offline download',()=>{

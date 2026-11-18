@@ -1,11 +1,11 @@
 {
   "name": "emoji-movie-maker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "An offline browser studio for animated emoji movies, scenes, captions, music, and video exports.",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node --test tests/engine.test.cjs"
+    "test": "node --test tests/engine.test.cjs tests/sharing.test.cjs"
   },
   "engines": {
     "node": ">=18"

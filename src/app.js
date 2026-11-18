@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const F = window.EmojiFilm;
+  const S = window.EmojiShare;
   const $ = id => document.getElementById(id);
   const icon = name => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const escape = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -17,7 +18,7 @@
   let project, selectedIndex = 0, selectedId = null, time = 0, playing = false, muted = true;
   let frame = 0, lastTick = 0, saveTimer, toastTimer, activeCategory = 'Popular', drag = null;
   const undo = [], redo = [], soundtrack = new F.Soundtrack();
-  let exporting = false, recording = null, editCommit = null, lastExportURL = null;
+  let exporting = false, recording = null, editCommit = null, lastExportURL = null, lastShareFile = null;
   $('export-dialog').insertBefore($('export-complete-template').content.cloneNode(true), $('export-fineprint'));
   let loadWarning = '';
   try {
@@ -168,7 +169,19 @@
     const result = download(blob, name, true); lastExportURL = result.url;
     $('export-choices').hidden = true; $('export-progress').hidden = true; $('export-go').hidden = true; $('cancel-export').hidden = true; $('export-complete').hidden = false;
     $('export-download').href = result.url; $('export-download').download = result.name; $('export-result-name').textContent = result.name;
-    if(preview?.type==='video'){$('export-video').hidden=false;$('export-video').src=result.url;}
+    if(preview?.type==='video'){
+      $('export-video').hidden=false;$('export-video').src=result.url;
+      try{lastShareFile=new File([blob],name,{type:S.mimeType(blob.type)});}catch(_){lastShareFile=null;}
+      $('social-sharing').hidden=false;
+      const direct=S.canShareVideo(lastShareFile);
+      $('share-video').hidden=!lastShareFile;
+      $('share-video').disabled=false;
+      $('share-video').innerHTML=icon(direct?'share':'download')+(direct?'Share video':'Download for social media');
+      $('share-hint').textContent=direct?'Choose an installed app in your device’s share menu. You’ll review the post there.':'Save your video, then open a platform below and select that file. You’ll finish the post there.';
+      $('share-format').textContent=S.mimeType(blob.type)==='video/mp4'?'MP4 video · Ready to upload and share.':'WebM video · If a platform asks for MP4, try a browser that offers MP4 recording.';
+      $('export-download').textContent='Download video';
+      $('export-download').classList.add('video-download');
+    }
     if(preview?.type==='player'){$('export-player').hidden=false;$('export-player').srcdoc=preview.html;}
     $('export-fineprint').textContent = 'Your file is ready to keep or share.';
   }
@@ -199,19 +212,18 @@
   }
   function videoType() {
     if (!window.MediaRecorder || !canvas.captureStream) return null;
-    const types = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
-    return types.find(t => MediaRecorder.isTypeSupported(t)) || null;
+    return S.chooseVideoType(type=>MediaRecorder.isTypeSupported(type));
   }
   function openExport() {
     if (editCommit) editCommit(); pause();
     $('export-summary').textContent = `${project.title || 'Untitled movie'} · ${project.scenes.length} ${project.scenes.length===1?'scene':'scenes'} · ${F.total(project)}s · ${F.dimensions(project.ratio).join(' × ')}`;
     const supported = videoType(); const radio = document.querySelector('input[name="export-format"][value="video"]'); radio.disabled = !supported;
-    $('video-description').textContent = supported ? `An animated ${supported.includes('mp4')?'MP4':'WebM'} movie, with your soundtrack.` : 'Video recording is unavailable here. Try Chrome or Edge.';
+    $('video-description').textContent = supported ? `An animated ${supported.includes('mp4')?'MP4':'WebM'} movie, ready to download or share.` : 'Video recording is unavailable here. Try Chrome or Edge.';
     if (!supported) document.querySelector('input[name="export-format"][value="player"]').checked = true;
     resetExport(); updateExportChoice(); $('export-dialog').showModal();
   }
   function updateExportChoice() { const type = document.querySelector('input[name="export-format"]:checked').value; $('export-go').innerHTML = icon('download') + `<span>${{video:'Download video',player:'Download playable movie',project:'Download project'}[type]}</span>`; $('export-fineprint').textContent = type === 'video' ? 'Video records in real time. Keep this tab visible.' : 'Made on your device. Your movie stays yours.'; }
-  function stopExportPreview(){ $('export-video').pause(); $('export-video').removeAttribute('src'); $('export-video').load(); $('export-player').removeAttribute('srcdoc'); $('export-video').hidden=true; $('export-player').hidden=true; }
+  function stopExportPreview(){ $('export-video').pause(); $('export-video').removeAttribute('src'); $('export-video').load(); $('export-player').removeAttribute('srcdoc'); $('export-video').hidden=true; $('export-player').hidden=true; $('social-sharing').hidden=true; lastShareFile=null; $('export-download').textContent='Download file again'; $('export-download').classList.remove('video-download'); }
   function resetExport() { exporting = false; stopExportPreview(); if(lastExportURL){URL.revokeObjectURL(lastExportURL);lastExportURL=null;} $('export-complete').hidden = true; $('export-progress').hidden = true; $('export-choices').hidden = false; $('cancel-export').hidden = true; $('export-go').hidden = false; $('export-go').disabled = false; $('progress-fill').style.width = '0%'; }
   async function exportVideo() {
     const mime = videoType(); if (!mime || exporting) return;
@@ -330,6 +342,23 @@
   document.querySelectorAll('input[name="export-format"]').forEach(el=>el.onchange=updateExportChoice);
   $('export-go').onclick=()=>{const type=document.querySelector('input[name="export-format"]:checked').value;if(type==='video')exportVideo();else if(type==='project'){finishExport(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),slug()+'.emoji.json');}else{const html=playerHTML();finishExport(new Blob([html],{type:'text/html;charset=utf-8'}),slug()+'.movie.html',{type:'player',html});toast('Playable movie ready. Share the HTML file to share your story.');}};
   $('export-done').onclick=()=>$('export-dialog').close();
+  $('share-video').onclick=async()=>{
+    const file=lastShareFile;if(!file)return;
+    if(!S.canShareVideo(file)){
+      download(file,file.name);
+      $('share-hint').textContent='Your video is downloaded. Open a platform below, select this file, and finish your post.';
+      toast('Video downloaded. Choose a platform below to upload it.');
+      return;
+    }
+    const button=$('share-video');button.disabled=true;
+    try{
+      const result=await S.shareVideo(file,project.title||'My emoji movie');
+      if(result.status==='shared')toast('Your movie was passed to the share app. Finish your post there.');
+      else if(result.status==='cancelled')toast('Sharing cancelled. Your movie is still ready.');
+      else toast('Use Download video, then choose an upload page below.');
+    }catch(_){$('share-hint').textContent='This device couldn’t share the file directly. Download the video, then select it on an upload page below.';toast('Direct sharing is unavailable. Your video is still ready to download.');}
+    finally{button.disabled=false;}
+  };
   $('cancel-export').onclick=()=>{recording?.cancel();toast('Recording cancelled. Your movie is still here.');};
   $('export-dialog').addEventListener('close',()=>{if(exporting)recording?.cancel();stopExportPreview();});
   $('export-dialog').addEventListener('cancel',()=>{if(exporting)recording?.cancel();});
