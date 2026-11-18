@@ -66,6 +66,13 @@ test('built offline HTML has no external assets and every embedded script parses
   const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)];assert.equal(scripts.length,2);
   for(const [,source] of scripts)assert.doesNotThrow(()=>new vm.Script(source));
 });
+test('GitHub Pages serves the same complete app as the offline download',()=>{
+  const path=require('node:path');
+  const offline=readFileSync(path.resolve(__dirname,'../dist/index.html'),'utf8');
+  const hosted=readFileSync(path.resolve(__dirname,'../docs/index.html'),'utf8');
+  assert.equal(hosted,offline);
+  assert.equal(readFileSync(path.resolve(__dirname,'../docs/.nojekyll'),'utf8'),'');
+});
 test('recorded WebM gets an explicit duration without changing its media bytes',async()=>{
   // Minimal live Segment: Info(TimestampScale=1,000,000), followed by a Cluster.
   const header=Buffer.from('1a45dfa3801853806701ffffffffffffff1549a966872ad7b1830f4240','hex');

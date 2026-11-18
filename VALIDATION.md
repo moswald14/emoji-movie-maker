@@ -3,7 +3,7 @@
 ## Passed
 
 - `node --check src/app.js` and `node --check src/engine.js`.
-- `node --test tests/engine.test.cjs`: 16 passing checks for scene boundaries, fractional durations, export resolutions, project validation, Unicode emoji, animated hit testing, caption wrapping, standalone script syntax, and WebM duration metadata.
+- `node --test tests/engine.test.cjs`: 17 passing checks for scene boundaries, fractional durations, export resolutions, project validation, Unicode emoji, animated hit testing, caption wrapping, standalone script syntax, WebM duration metadata, and identical online/offline builds.
 - Chrome: added a cat through emoji search, changed its animation and size, dragged it on the canvas, changed a scene name and caption, duplicated a scene, and restored these edits after reloading the page.
 - Scene ordering, undo, and redo were checked against the displayed card order.
 - Phone-sized browser layout: the page had no horizontal overflow at 375 CSS pixels; portrait canvas resolution was 720 × 1280. This was a browser viewport check, not a physical phone test.
@@ -16,7 +16,10 @@
 
 - The browser automation service cannot retrieve Blob downloads. Generated download links and the actual corresponding player/video contents were verified through the in-app export previews; saving the downloads to a particular user folder was not verified.
 - Safari, physical phones, maximum-length projects, and audible sound quality were not checked. The soundtrack generator and recording audio route are implemented with Web Audio.
-- Online publication could not be attempted successfully because the connected Sites service failed during startup. No confirmed site ID or deployed URL was returned. The complete offline application is the delivered result.
+
+## GitHub Pages publishing
+
+GitHub Pages uses the `main` branch's `/docs` folder. Running `npm run build` updates both `docs/index.html` and `dist/index.html`, and writes the `.nojekyll` marker. An automated check verifies that the hosted and offline versions contain the same complete app.
 
 ## Format reference
 
